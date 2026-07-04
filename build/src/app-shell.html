@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>The Albion Craft Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IM+Fell+English:ital@0;1&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+__STYLE__
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <div class="rule"></div>
+  <h1><span class="fleur">❦ </span>The Albion Craft Ledger<span class="fleur"> ❦</span></h1>
+  <div class="sub">A true account of crafting profits &amp; gathering debts</div>
+  <div class="by">by: <b class="glow naz">naz</b> <b class="glow naz">:&gt;</b> &amp; <b class="glow frez">frezeli</b> <b class="glow frez">c:</b></div>
+  <div class="rule"></div>
+  <div class="status" id="mastStatus"></div>
+</header>
+
+<nav id="nav">
+  <button data-view="ledger" class="active"><span class="g">⚒</span>Ledger</button>
+  <button data-view="flips"><span class="g">⇄</span>Flips</button>
+  <button data-view="inventory"><span class="g">▤</span>Inventory</button>
+  <button data-view="tracking"><span class="g">⚑</span>Tracking</button>
+  <button data-view="settings"><span class="g">⚙</span>Settings</button>
+</nav>
+
+<!-- ══════════ LEDGER ══════════ -->
+<section id="view-ledger" class="view active">
+  <div class="panel">
+    <div class="ctl-row">
+      <label class="f">Server <select id="selServer"><option value="europe">Europe</option><option value="west">Americas</option><option value="east">Asia</option></select></label>
+      <label class="f">City <select id="selCity"></select></label>
+      <div class="seg" id="segTier"></div>
+      <div class="seg" id="segEnch"></div>
+      <button class="b primary" id="btnRefresh">Refresh prices</button>
+      <span id="refreshStatus" class="pmeta"></span>
+    </div>
+    <div class="ctl-row">
+      <label class="switch">Premium <input type="checkbox" id="chkPremium"><span class="knob"></span></label>
+      <label class="switch">Craftable now <input type="checkbox" id="chkCraftable"><span class="knob"></span></label>
+      <div class="seg" id="segSell"><button data-sell="instant">Instant Sell</button><button data-sell="order">Sell Order</button></div>
+      <label class="f">Return <input id="inpReturn" type="number" min="0" max="90" style="width:52px"> %</label>
+      <label class="f">Rank <select id="selSort"><option value="total">Total profit (from stock)</option><option value="perCraft">Profit / craft</option><option value="perMat">Value / material</option></select></label>
+      <input id="inpFilter" type="text" placeholder="Search items…" style="flex:1;min-width:150px;max-width:240px">
+    </div>
+    <div class="tabs" id="ledgerTabs"></div>
+    <div id="rankDesc" class="rankdesc"></div>
+    <div id="enchNote" class="note warn hidden"></div>
+    <div id="cityNote" class="note hidden"></div>
+    <div id="apiBanner" class="note error hidden"></div>
+    <div id="specLead" class="speclead"></div>
+    <div id="citySpecBar" class="cityspec"></div>
+  </div>
+  <div class="panel">
+    <div id="ledgerTable"></div>
+    <div id="ledgerCards"></div>
+    <div id="ledgerFoot" class="foot"></div>
+  </div>
+</section>
+
+<!-- ══════════ FLIPS ══════════ -->
+<section id="view-flips" class="view">
+  <div class="panel">
+    <div class="ctl-row">
+      <label class="f">Category <select id="flipCat"></select></label>
+      <div class="seg" id="flipTier"></div>
+      <div class="seg" id="flipEnch"></div>
+      <button class="b primary" id="btnScanFlips">Scan prices</button>
+      <span id="flipStatus" class="pmeta"></span>
+    </div>
+    <div class="ctl-row">
+      <div class="seg" id="flipMode"><button data-fmode="instant">Instant flips</button><button data-fmode="order">Order flips</button></div>
+      <label class="f">Min profit <input id="flipMin" type="number" min="0" style="width:80px"></label>
+      <input id="flipFilter" type="text" placeholder="Search items…" style="flex:1;min-width:150px;max-width:240px">
+    </div>
+    <div class="rankdesc" id="flipDesc"></div>
+    <div class="note">Prices are shared with the Ledger — press <b>Scan prices</b> to load this wider set (all cities + Black Market). Flips assume you move the goods yourself; transport risk isn't priced in.</div>
+    <div id="flipBanner" class="note error hidden"></div>
+  </div>
+  <div class="panel">
+    <div id="flipTable"></div>
+    <div id="flipCards"></div>
+    <div id="flipFoot" class="foot"></div>
+  </div>
+</section>
+
+<!-- ══════════ INVENTORY ══════════ -->
+<section id="view-inventory" class="view">
+  <div class="panel">
+    <h2 class="ph">Coffers <small>your one manual silver balance</small></h2>
+    <div class="silverrow"><label class="f">Current silver <input id="inpSilver" type="number" min="0"></label></div>
+  </div>
+  <div class="invcols">
+    <div class="panel invpane">
+      <h2 class="ph">What You Have <small>everything you own · per quality</small></h2>
+      <input id="haveFilter" type="text" placeholder="Search what you own…" style="width:100%;margin-bottom:8px">
+      <div id="haveList"></div>
+      <div id="haveFoot" class="foot"></div>
+    </div>
+    <div class="panel invpane">
+      <h2 class="ph">Add to Inventory <small>pick from every category</small></h2>
+      <div class="tabs" id="catTabs"></div>
+      <input id="catFilter" type="text" placeholder="Search items to add…" style="width:100%;margin:2px 0 8px">
+      <div class="note">Tap any item to choose its tier, enchant, quality and quantity, then add it to what you own. Counts feed the craftable numbers in the Ledger.</div>
+      <div style="height:8px"></div>
+      <div id="catGrid" class="invgrid"></div>
+      <div id="catFoot" class="foot"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ TRACKING ══════════ -->
+<section id="view-tracking" class="view">
+  <div class="panel">
+    <h2 class="ph">Tracking <small>expand any recipe down to raw · have / need at every step</small></h2>
+    <div class="note warn">Gather-time and buy figures use rough per-hour assumptions and live instant-buy prices — edit rates in Settings. Track anything from the Ledger with its ⚑ button, or search below.</div>
+    <div class="ctl-row" style="margin-top:10px">
+      <input id="trackSearch" type="text" placeholder="Search an item to track…" style="flex:1;min-width:160px;max-width:320px">
+      <select id="trackResults" class="hidden"></select>
+    </div>
+  </div>
+  <div class="panel" id="trackPanel">
+    <div id="trackList"></div>
+  </div>
+  <div id="trackAgg"></div>
+</section>
+
+<!-- ══════════ SETTINGS ══════════ -->
+<section id="view-settings" class="view">
+  <div class="panel">
+    <h2 class="ph">Gathering rates <small>units per hour, per resource &amp; tier</small></h2>
+    <div class="note warn">Rough starting assumptions, not measured data — real rates swing with zone, competition, gear and luck. Edit to match your speed; clear a field to restore the default.</div>
+    <div style="height:10px"></div>
+    <div class="rategrid" id="rateGrid"></div>
+  </div>
+  <div class="panel">
+    <h2 class="ph">Backup <small>move your ledger between devices</small></h2>
+    <div class="btnrow">
+      <button class="b" id="btnExport">Export data (JSON)</button>
+      <button class="b" id="btnImport">Import data…</button>
+      <input type="file" id="fileImport" accept="application/json,.json" class="hidden">
+    </div>
+    <div class="note">Everything lives in this browser's localStorage. Export before clearing browser data; import on your phone to carry the ledger across.</div>
+  </div>
+  <div class="panel about">
+    <h2 class="ph">Assumptions &amp; sources</h2>
+    <p><b>Recipes are the real ones</b> from the datamined item list — including faction/artifact items (they need an artifact plus refined materials). Costs are broken <b>all the way down to raw resources</b>: the app recursively values each ingredient by crafting it from raw, and only buys the leaves it can't craft (raw resources, artifacts, tokens) at market price.</p>
+    <p><b>Market fees:</b> Setup fee 2.5% applies only to sell <i>orders</i>; transaction tax is 8% (4% with Premium) on sale. <b>Return rate</b> reduces returnable material use per craft; artifacts never return.</p>
+    <p><b>Craftable count</b> is how many you can make right now from the direct ingredients in your Inventory. <b>Inventory &amp; silver are manual by design</b> — Albion exposes no inventory API, and the workarounds carry account risk.</p>
+    <p><b>Sources:</b> item &amp; recipe data from the community <i>ao-bin-dumps</i>; live prices &amp; history from the <i>Albion Online Data Project</i> (crowdsourced — thin markets may be stale or empty); icons from Albion's official render service. Not affiliated with Sandbox Interactive.</p>
+  </div>
+  <div class="panel danger">
+    <h2 class="ph">Danger zone</h2>
+    <button class="b" id="btnReset">Erase all ledger data</button>
+  </div>
+</section>
+
+</div>
+<div id="addModal"><div class="box">
+  <div class="mhead" id="addIcon"></div>
+  <div class="mrow"><label>Tier</label><select id="addTier"></select></div>
+  <div class="mrow"><label>Enchant</label><select id="addEnch"></select></div>
+  <div class="mrow"><label>Quality</label><select id="addQual"></select></div>
+  <div class="mrow"><label>Quantity</label><input id="addQty" type="number" min="1" value="1"></div>
+  <div class="mfoot"><button class="b" id="addCancel">Cancel</button><button class="b primary" id="addConfirm">Add to inventory</button></div>
+</div></div>
+<div id="itemModal"><div class="box">
+  <button class="x" id="itemModalClose" aria-label="Close">✕</button>
+  <div id="itemModalBody"></div>
+</div></div>
+<div id="toast"></div>
+
+<script id="ds" type="application/json">__ALBION_DATA__</script>
+<script>
+__APP_JS__
+</script>
+</body>
+</html>
