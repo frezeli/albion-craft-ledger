@@ -5,7 +5,7 @@ function flipItemIds(){
   for(const base in DATA){
     const it=DATA[base];
     if(it.t==null) continue;
-    if(s.flipCat!=='All' && tabOf(it)!==s.flipCat) continue;
+    if(s.flipCat!=='all' && catOf(it)!==s.flipCat) continue;
     if(s.flipTier!=='all' && it.t!==s.flipTier) continue;
     if(s.flipEnch==='all'){ out.push(base); if(isEnchantable(base)) for(let e=1;e<=4;e++) out.push(withE(base,e)); }
     else if(s.flipEnch===0){ out.push(base); }
@@ -48,19 +48,23 @@ function computeFlips(){
     rows.push({fullId, instant, order,
       iP:instant?instant.profit:null, oP:order?order.profit:null,
       iM:(instant&&instant.buyPrice>0)?instant.profit/instant.buyPrice*100:null,
-      oM:(order&&order.buyPrice>0)?order.profit/order.buyPrice*100:null});
+      oM:(order&&order.buyPrice>0)?order.profit/order.buyPrice*100:null,
+      iSusp:instant?isSuspectPrice(fullId,instant.sellPrice):false,
+      oSusp:order?isSuspectPrice(fullId,order.sellPrice):false});
   }
   return rows;
 }
 function orderFlips(rows){
   const s=state.settings, filter=($('flipFilter').value||'').trim().toLowerCase(), min=+s.flipMinProfit||0;
-  const pkey=s.flipMode==='order'?'oP':'iP';
+  const pkey=s.flipMode==='order'?'oP':'iP', skey=s.flipMode==='order'?'oSusp':'iSusp';
   let list=rows.filter(r=>r[pkey]!=null && r[pkey]>0 && r[pkey]>=min);
   if(filter)list=list.filter(r=>nameOf(r.fullId).toLowerCase().includes(filter));
+  let hidden=0;
+  if(s.hideSuspicious){ const before=list.length; list=list.filter(r=>!r[skey]); hidden=before-list.length; }
   const nv=x=>x==null||isNaN(x)?-Infinity:x;
   if(flipColSort){const{k,dir}=flipColSort; list.sort((a,b)=>(nv(b[k])-nv(a[k]))*dir);}
   else list.sort((a,b)=>nv(b[pkey])-nv(a[pkey]));
-  return {list:list.slice(0,LEDGER_CAP), total:list.length};
+  return {list:list.slice(0,LEDGER_CAP), total:list.length, hidden};
 }
 function routeHtml(f){
   if(!f)return '<span class="dim">—</span>';
@@ -69,8 +73,9 @@ function routeHtml(f){
 function renderFlips(){
   const s=state.settings, mode=s.flipMode;
   $('flipCat').value=s.flipCat;
-  document.querySelectorAll('#flipTier button').forEach(b=>b.classList.toggle('on',b.dataset.ftier===String(s.flipTier)));
-  document.querySelectorAll('#flipEnch button').forEach(b=>b.classList.toggle('on',b.dataset.fench===String(s.flipEnch)));
+  $('selFlipTier').value=String(s.flipTier);
+  $('selFlipEnch').value=String(s.flipEnch);
+  $('chkFlipSuspicious').checked=s.hideSuspicious;
   document.querySelectorAll('#flipMode button').forEach(b=>b.classList.toggle('on',b.dataset.fmode===mode));
   if(document.activeElement!==$('flipMin'))$('flipMin').value=s.flipMinProfit||'';
   $('flipDesc').innerHTML=mode==='order'
@@ -78,22 +83,24 @@ function renderFlips(){
     : 'Ranked by <b>Instant flip</b> — buy the cheapest listing, haul it, and dump it into the best buy order or the Black Market (✦). Fast to execute. Profit per unit, after tax.';
   const scanned=flipItemIds().some(id=>priceEntry(id));
   if(!scanned){ $('flipTable').innerHTML=''; $('flipCards').innerHTML=''; $('flipFoot').innerHTML='<div class="foot">Press <b>Scan prices</b> to load this market and find flips.</div>'; return; }
-  const {list,total}=orderFlips(computeFlips());
+  const {list,total,hidden}=orderFlips(computeFlips());
   const cols=[['','#'],['','Item',1],['','Buy → Sell',1],['iP','Instant'],['oP','Order'],[mode==='order'?'oM':'iM','Margin']];
   let thead='<tr>'+cols.map(c=>{const dir=flipColSort&&flipColSort.k===c[0]?(flipColSort.dir>0?' ▾':' ▴'):''; return `<th class="${c[2]?'l':''}" ${c[0]?`data-fsort="${c[0]}"`:''}>${c[1]}${dir}</th>`;}).join('')+'</tr>';
   let trs='',cards='';
   list.forEach((r,i)=>{
     const f=mode==='order'?r.order:r.instant, nm=nameOf(r.fullId), m=mode==='order'?r.oM:r.iM;
+    const susp=mode==='order'?r.oSusp:r.iSusp;
+    const suspFlag=susp?'<span class="flag bad" title="This sell price is far above what the item fetches in other cities — probably a lone overpriced order, not a real flip.">⚠ price outlier?</span>':'';
     const top=i===0&&!flipColSort;
     trs+=`<tr class="r${top?' top':''}">
       <td class="rk">${top?'<span class="star">★</span>':i+1}</td>
-      <td><div class="itemcell">${iconHtml(r.fullId)}<div><span class="nm">${nm}</span><span class="fam">${DATA[stripE(r.fullId)].c} · T${tierOf(r.fullId)}</span></div></div></td>
+      <td><div class="itemcell">${iconHtml(r.fullId)}${tierChipHtml(r.fullId)}<div><span class="nm">${nm}</span><span class="fam">${DATA[stripE(r.fullId)].c} · T${tierOf(r.fullId)}</span>${suspFlag}</div></div></td>
       <td>${routeHtml(f)}</td>
       <td class="num ${r.iP>0?'pos':r.iP<0?'neg':''}">${r.iP!=null?fmt(r.iP):'—'}</td>
       <td class="num ${r.oP>0?'pos':r.oP<0?'neg':''}">${r.oP!=null?fmt(r.oP):'—'}</td>
       <td class="num">${m!=null?fmt(m)+'%':'—'}</td></tr>`;
     cards+=`<div class="card${top?' top':''}">
-      <div class="head">${iconHtml(r.fullId,44)}<div><span class="nm">${nm}</span><span class="fam">${DATA[stripE(r.fullId)].c} · T${tierOf(r.fullId)}</span></div></div>
+      <div class="head">${iconHtml(r.fullId,44)}${tierChipHtml(r.fullId)}<div><span class="nm">${nm}</span><span class="fam">${DATA[stripE(r.fullId)].c} · T${tierOf(r.fullId)}</span>${suspFlag}</div></div>
       <div style="margin:2px 0 8px">${routeHtml(f)}</div>
       <div class="stats">
         <div class="st"><span class="k">Instant</span><span class="v ${r.iP>0?'pos':r.iP<0?'neg':''}">${r.iP!=null?fmt(r.iP):'—'}</span></div>
@@ -103,6 +110,7 @@ function renderFlips(){
   });
   $('flipTable').innerHTML=list.length?`<table><thead>${thead}</thead><tbody>${trs}</tbody></table>`:'<div class="foot">No profitable flips in this scope. Try another category or tier, lower the min profit, or scan again.</div>';
   $('flipCards').innerHTML=list.length?cards:'<div class="foot">No profitable flips found.</div>';
-  $('flipFoot').textContent=list.length?`Top ${list.length}${total>list.length?' of '+total:''} ${mode==='order'?'order (patient)':'instant (fast)'} flip${total===1?'':'s'}.`:'';
+  const fhid=hidden?` · ${hidden} hidden as suspicious price${hidden===1?'':'s'}`:'';
+  $('flipFoot').textContent=(list.length?`Top ${list.length}${total>list.length?' of '+total:''} ${mode==='order'?'order (patient)':'instant (fast)'} flip${total===1?'':'s'}.`:(hidden?'No flips left after hiding suspicious prices.':''))+fhid;
 }
 

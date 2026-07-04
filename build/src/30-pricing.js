@@ -13,6 +13,19 @@ const priceOf=(fullId,city)=>{const p=cityPrice(fullId,city); return p?p.price:n
 function homeCity(){ return state.settings.city; }  // single-city model: craft + sell in the selected city
 function cityEntry(fullId,city){ const e=priceEntry(fullId); return (e&&e.cities[city])||null; }
 function bestSellCity(fullId){ const e=priceEntry(fullId); if(!e)return null; let bc=null,bp=0; for(const c of CITIES){const cp=e.cities[c]; if(cp&&cp.price>bp){bp=cp.price;bc=c;}} return bc?{city:bc,price:bp}:null; }
+/* Suspicious-price / outlier check (ported from Naz's albion-ledger-craft): on a thin market a
+   single absurd listing becomes the min sell price. If the price towers over the cross-city median
+   (>4× and >50k above it), treat it as a one-off outlier, not a real opportunity. Needs ≥3 cities. */
+function isSuspectPrice(fullId,price){
+  if(!(price>0))return false;
+  const e=priceEntry(fullId); if(!e)return false;
+  const sample=[];
+  for(const c of CITIES){ const cp=e.cities[c]; if(cp&&cp.price>0)sample.push(cp.price); }
+  if(sample.length<3)return false;
+  sample.sort((a,b)=>a-b);
+  const median=sample[Math.floor(sample.length/2)];
+  return price>median*4 && price-median>50000;
+}
 /* market state for the three badges — buy orders tell "sold out" from a truly dead market */
 function marketStatus(fullId,city){
   if(state.manualPrices[fullId+'|'+city]!=null) return {kind:'manual'};
@@ -70,7 +83,8 @@ const fmt=n=>n==null||isNaN(n)?'—':Math.round(n).toLocaleString('en-US');
 const fmt1=n=>n==null||isNaN(n)?'—':(Math.round(n*10)/10).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
 function ago(ts){const m=(Date.now()-ts)/60000; if(m<1)return'just now'; if(m<60)return Math.floor(m)+'m ago'; const h=m/60; if(h<24)return Math.floor(h)+'h ago'; return Math.floor(h/24)+'d ago';}
 function iconUrl(fullId){ return 'https://render.albiononline.com/v1/item/'+fullId+'.png?size=64'; }
-function iconHtml(fullId,size,opts){ opts=opts||{}; const e=enchOf(fullId); const qb=opts.q?` qb${opts.q}`:''; const dim=size?` style="width:${size}px;height:${size}px"`:''; return `<span class="icoWrap${qb}"${dim}><img loading="lazy" src="${iconUrl(fullId)}" alt="" onerror="this.style.display='none'">${e?`<span class="ench">.${e}</span>`:''}${opts.star?'<span class="bstar" title="This city specialises in this craft">★</span>':''}</span>`; }
+// enchant level is shown by the T7.1 tier chip beside the icon, not as an overlay badge on the icon itself
+function iconHtml(fullId,size,opts){ opts=opts||{}; const qb=opts.q?` qb${opts.q}`:''; const dim=size?` style="width:${size}px;height:${size}px"`:''; return `<span class="icoWrap${qb}"${dim}><img loading="lazy" src="${iconUrl(fullId)}" alt="" onerror="this.style.display='none'">${opts.star?'<span class="bstar" title="This city specialises in this craft">★</span>':''}</span>`; }
 // T7.1-style chip: tier + enchant suffix coloured by level
 function tierChipHtml(fullId){ const t=tierOf(fullId), e=enchOf(fullId); if(t==null)return ''; return `<span class="tchip">T${t}${e?`<span class="e e${e}">.${e}</span>`:''}</span>`; }
 function toast(m){const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2600);}

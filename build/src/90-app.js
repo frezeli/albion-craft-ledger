@@ -18,8 +18,8 @@ function renderMast(){
 function renderEnchNote(){
   const s=state.settings, n=$('enchNote');
   if(s.enchant==='all'){ n.textContent='Showing every enchant level (.0–.4) as its own row — the top of the list is the overall best, regardless of enchant.'; n.classList.remove('hidden'); return; }
-  if(s.enchant && ['Consumables','Tools','Mounts','Misc','Artifacts'].includes(s.ledgerTab)){
-    n.textContent=`The ${s.ledgerTab} category doesn't enchant — showing base (.0) items. Enchant applies to weapons, armour and resources.`; n.classList.remove('hidden');
+  if(s.enchant && ['food','potions','tools','mounts','raw','artifacts','other'].includes(s.ledgerTab)){
+    n.textContent=`The ${CAT_LABELS[s.ledgerTab]||'this'} category doesn't enchant — showing base (.0) items. Enchant applies to weapons, armour and resources.`; n.classList.remove('hidden');
   } else if(s.enchant){ n.textContent=`Enchant .${s.enchant}: costs use enchanted materials, and craftable counts assume your on-hand materials match .${s.enchant}.`; n.classList.remove('hidden'); }
   else n.classList.add('hidden');
 }
@@ -30,12 +30,10 @@ function renderCityNote(){
 function syncControls(){
   const s=state.settings;
   $('selServer').value=s.server; $('selCity').value=s.city;
-  $('chkPremium').checked=s.premium; $('chkCraftable').checked=s.craftableOnly; $('inpReturn').value=s.returnRate; $('selSort').value=s.sortMode;
-  document.querySelectorAll('#segTier button').forEach(b=>b.classList.toggle('on',b.dataset.tier===String(s.tier)));
-  document.querySelectorAll('#segEnch button').forEach(b=>b.classList.toggle('on',b.dataset.ench===String(s.enchant)));
+  $('chkPremium').checked=s.premium; $('chkCraftable').checked=s.craftableOnly; $('chkSuspicious').checked=s.hideSuspicious; $('inpReturn').value=s.returnRate; $('selSort').value=s.sortMode;
+  $('selLedgerCat').value=s.ledgerTab; $('selTier').value=String(s.tier); $('selEnch').value=String(s.enchant);
+  $('selInvCat').value=s.invTab;
   document.querySelectorAll('#segSell button').forEach(b=>b.classList.toggle('on',b.dataset.sell===s.sellMethod));
-  document.querySelectorAll('#ledgerTabs button').forEach(b=>b.classList.toggle('on',b.dataset.ltab===s.ledgerTab));
-  document.querySelectorAll('#catTabs button').forEach(b=>b.classList.toggle('on',b.dataset.ctab===s.invTab));
   renderEnchNote(); renderCityNote();
 }
 function renderActive(){ syncControls(); renderMast(); if(current==='ledger')renderLedger(); else if(current==='flips')renderFlips(); else if(current==='inventory')renderInventory(); else if(current==='tracking')renderTracking(); else if(current==='settings')renderSettings(); }
@@ -45,30 +43,33 @@ function exportData(){const blob=new Blob([JSON.stringify(state,null,1)],{type:'
 function importData(file){const fr=new FileReader(); fr.onload=()=>{try{const p=JSON.parse(fr.result); if(!p||typeof p.settings!=='object'||typeof p.inventory!=='object')throw 0; if(!confirm('Replace ALL current ledger data with this backup?'))return; state=merge(p); save(); colSort=null; renderActive(); toast('Ledger imported');}catch(e){toast('Import failed — not a valid ledger backup');}}; fr.readAsText(file);}
 
 /* ════════ init controls ════════ */
+// grouped category <select> options — "All" first, then Naz's optgroup tree
+function catSelectOptions(){
+  let h=`<option value="all">All categories</option>`;
+  for(const [group,leaves] of CAT_GROUPS){
+    h+=`<optgroup label="${group}">`;
+    for(const [key,label] of leaves) h+=`<option value="${key}">${label}</option>`;
+    h+=`</optgroup>`;
+  }
+  return h;
+}
+const tierSelectOptions=()=>`<option value="all">All tiers</option>`+TIERS.map(t=>`<option value="${t}">T${t}</option>`).join('');
+const enchSelectOptions=()=>`<option value="all">All enchants</option>`+[0,1,2,3,4].map(e=>`<option value="${e}">.${e}</option>`).join('');
 function initControls(){
   $('selCity').innerHTML=CITIES.map(c=>`<option value="${c}">${cityLabel(c)}</option>`).join('');
-  $('segTier').innerHTML=TIERS.map(t=>`<button data-tier="${t}">T${t}</button>`).join('')+`<button data-tier="all">All</button>`;
-  $('segEnch').innerHTML=[0,1,2,3,4].map(e=>`<button data-ench="${e}">.${e}</button>`).join('')+`<button data-ench="all">All</button>`;
-  $('ledgerTabs').innerHTML=ALLTABS.map(t=>`<button data-ltab="${t}">${t}</button>`).join('');
-  $('catTabs').innerHTML=ALLTABS.map(t=>`<button data-ctab="${t}">${t}</button>`).join('');
-  $('flipCat').innerHTML=ALLTABS.map(t=>`<option value="${t}">${t}</option>`).join('');
-  $('flipTier').innerHTML=TIERS.map(t=>`<button data-ftier="${t}">T${t}</button>`).join('')+`<button data-ftier="all">All</button>`;
-  $('flipEnch').innerHTML=[0,1,2,3,4].map(e=>`<button data-fench="${e}">.${e}</button>`).join('')+`<button data-fench="all">All</button>`;
+  const cat=catSelectOptions(), tier=tierSelectOptions(), ench=enchSelectOptions();
+  $('selLedgerCat').innerHTML=cat; $('selTier').innerHTML=tier; $('selEnch').innerHTML=ench;
+  $('flipCat').innerHTML=cat; $('selFlipTier').innerHTML=tier; $('selFlipEnch').innerHTML=ench;
+  $('selInvCat').innerHTML=cat;
 }
 
 /* ════════ events ════════ */
 document.addEventListener('click',ev=>{
   const b=ev.target.closest('button'); if(!b)return;
   if(b.dataset.view){document.querySelectorAll('nav#nav button').forEach(x=>x.classList.toggle('active',x===b)); document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+b.dataset.view)); current=b.dataset.view; renderActive(); return;}
-  if(b.dataset.tier){state.settings.tier=b.dataset.tier==='all'?'all':+b.dataset.tier; save(); renderLedger(); syncControls(); renderMast(); autoRefresh(); return;}
-  if(b.dataset.ench!=null&&b.closest('#segEnch')){state.settings.enchant=b.dataset.ench==='all'?'all':+b.dataset.ench; save(); renderLedger(); syncControls(); renderMast(); autoRefresh(); return;}
   if(b.dataset.sell){state.settings.sellMethod=b.dataset.sell; save(); syncControls(); renderLedger(); return;}
-  if(b.dataset.ftier){state.settings.flipTier=b.dataset.ftier==='all'?'all':+b.dataset.ftier; save(); renderFlips(); return;}
-  if(b.dataset.fench!=null&&b.closest('#flipEnch')){state.settings.flipEnch=b.dataset.fench==='all'?'all':+b.dataset.fench; save(); renderFlips(); return;}
   if(b.dataset.fmode){state.settings.flipMode=b.dataset.fmode; flipColSort=null; save(); renderFlips(); return;}
   if(b.id==='btnScanFlips'){scanFlips(); return;}
-  if(b.dataset.ltab){state.settings.ledgerTab=b.dataset.ltab; colSort=null; save(); renderLedger(); syncControls(); autoRefresh(); return;}
-  if(b.dataset.ctab){state.settings.invTab=b.dataset.ctab; save(); renderCatalog(); syncControls(); return;}
   if(b.id==='addCancel'){closeAddModal(); return;}
   if(b.id==='addConfirm'){confirmAdd(); return;}
   if(b.dataset.havrm){const [id,ql]=b.dataset.havrm.split('|'); setInvQ(id,ql,0); save(); renderHave(); renderCatalog(); return;}
@@ -97,6 +98,13 @@ document.addEventListener('change',ev=>{
   if(el.id==='selCity'){state.settings.city=el.value; save(); renderActive(); refreshTrends().then(()=>{save(); if(current==='ledger')renderLedger();}); autoRefresh(); return;}
   if(el.id==='chkPremium'){state.settings.premium=el.checked; save(); renderLedger(); return;}
   if(el.id==='chkCraftable'){state.settings.craftableOnly=el.checked; save(); renderLedger(); return;}
+  if(el.id==='chkSuspicious'||el.id==='chkFlipSuspicious'){state.settings.hideSuspicious=el.checked; save(); if(current==='flips')renderFlips(); else renderLedger(); syncControls(); return;}
+  if(el.id==='selLedgerCat'){state.settings.ledgerTab=el.value; colSort=null; save(); renderLedger(); syncControls(); renderMast(); autoRefresh(); return;}
+  if(el.id==='selTier'){state.settings.tier=el.value==='all'?'all':+el.value; save(); renderLedger(); syncControls(); renderMast(); autoRefresh(); return;}
+  if(el.id==='selEnch'){state.settings.enchant=el.value==='all'?'all':+el.value; save(); renderLedger(); syncControls(); renderMast(); autoRefresh(); return;}
+  if(el.id==='selFlipTier'){state.settings.flipTier=el.value==='all'?'all':+el.value; save(); renderFlips(); return;}
+  if(el.id==='selFlipEnch'){state.settings.flipEnch=el.value==='all'?'all':+el.value; save(); renderFlips(); return;}
+  if(el.id==='selInvCat'){state.settings.invTab=el.value; save(); renderCatalog(); syncControls(); return;}
   if(el.id==='inpReturn'){state.settings.returnRate=Math.min(90,Math.max(0,+el.value||0)); save(); renderActive(); syncControls(); return;}
   if(el.id==='selSort'){state.settings.sortMode=el.value; colSort=null; save(); renderLedger(); return;}
   if(el.id==='flipCat'){state.settings.flipCat=el.value; save(); renderFlips(); return;}

@@ -8,7 +8,7 @@ function ledgerItems(){
   for(const base in DATA){
     const it=DATA[base];
     if(tierSel!=='all' && it.t!==tierSel) continue; // 'all' → every tier
-    if(tab!=='All' && tabOf(it)!==tab) continue;    // 'All' → every category
+    if(tab!=='all' && catOf(it)!==tab) continue;    // 'all' → every category
     if(!it.b && !(it.e)) continue;                  // must be craftable
     if(ench==='all'){                               // 'all' → each enchant as its own row
       if(it.b) rows.push(base);
@@ -41,7 +41,8 @@ function computeLedger(){
     const b=bestSellCity(fullId); if(b&&price!=null&&b.price>price&&b.city!==city)best={city:b.city,delta:b.price-price};
     const status=marketStatus(fullId,city);
     const trend=state.trendCache[s.server+'|'+fullId+'|'+city];
-    return {fullId,rec,price,net,cost,profit,margin,craft,total,perMat,best,sellCity,status,trendPct:trend?trend.pct:null};
+    const suspect=isSuspectPrice(fullId,price);
+    return {fullId,rec,price,net,cost,profit,margin,craft,total,perMat,best,sellCity,status,suspect,trendPct:trend?trend.pct:null};
   });
 }
 let _ledgerCache=null;
@@ -58,12 +59,14 @@ function orderLedger(rows){
   let list=rows;
   if(filter)list=list.filter(r=>nameOf(r.fullId).toLowerCase().includes(filter));
   if(s.craftableOnly)list=list.filter(r=>r.craft>0);
+  let hidden=0;
+  if(s.hideSuspicious){ const before=list.length; list=list.filter(r=>!r.suspect); hidden=before-list.length; }
   const nv=x=>x==null||isNaN(x)?-Infinity:x;
   if(colSort){const{key,dir}=colSort; list.sort((a,b)=>(nv(b[key])-nv(a[key]))*dir);}
   else if(s.sortMode==='perCraft')list.sort((a,b)=>nv(b.profit)-nv(a.profit));
   else if(s.sortMode==='perMat')list.sort((a,b)=>nv(b.perMat)-nv(a.perMat));
   else list.sort((a,b)=>nv(b.total)-nv(a.total)||nv(b.profit)-nv(a.profit));
-  return {list:list.slice(0,LEDGER_CAP),total:list.length,filtered:!!filter};
+  return {list:list.slice(0,LEDGER_CAP),total:list.length,filtered:!!filter,hidden};
 }
 function recipeText(rec,rr){
   return rec.r.map(ing=>`<b>${ing.n}×</b> ${nameOf(ing.id)}${ing.a?' ✦':''}`).join(' · ');
@@ -84,6 +87,7 @@ function pmetaHtml(r){
   else if(st&&st.kind==='ok')o+=`<span class="pmeta">${ago(st.date)}</span>`;
   else o+=statusBadge(st);
   if(r.best)o+=`<span class="flag good" title="Another city currently pays more for this finished item">best: ${cityLabel(r.best.city)} (+${fmt(r.best.delta)})</span>`;
+  if(r.suspect)o+=`<span class="flag bad" title="This price is far above what the item sells for in other cities — probably a lone overpriced listing, not a real opportunity.">⚠ price outlier?</span>`;
   return o;
 }
 // small warn badge explaining a null price / cost, tooltip built from priceReason()
@@ -130,7 +134,7 @@ function renderLedger(){
   const s=state.settings, rr=s.returnRate/100;
   renderRankDesc();
   renderCitySpec();
-  const {list,total,filtered}=orderLedger(computeLedgerCached());
+  const {list,total,filtered,hidden}=orderLedger(computeLedgerCached());
   const modeSorted=!colSort;
   const cols=[['','#'],['','Item',1],['price','Sell'],['net','Net'],['cost','Cost/craft'],['craft','Craftable'],['profit','Profit'],['total','Total'],['perMat','Per mat'],['margin','Margin'],['','⚑']];
   let thead='<tr>'+cols.map(c=>{const dir=colSort&&colSort.key===c[0]?(colSort.dir>0?' ▾':' ▴'):''; return `<th class="${c[2]?'l':''}" ${c[0]?`data-sortcol="${c[0]}"`:''}>${c[1]}${dir}</th>`;}).join('')+'</tr>';
@@ -168,7 +172,8 @@ function renderLedger(){
   });
   $('ledgerTable').innerHTML=list.length?`<table><thead>${thead}</thead><tbody>${trs}</tbody></table>`:'<div class="foot">No craftable items here. Try another category, tier, or enchant — or press “Refresh prices”.</div>';
   $('ledgerCards').innerHTML=cards||'<div class="foot">No craftable items match.</div>';
-  $('ledgerFoot').textContent=filtered?`${list.length} of ${total} match “${$('inpFilter').value}”.`:(total>LEDGER_CAP?`Showing top ${LEDGER_CAP} of ${total} — search to narrow.`:`${total} craftable item${total===1?'':'s'}.`);
+  const hid=hidden?` · ${hidden} hidden as suspicious price${hidden===1?'':'s'}`:'';
+  $('ledgerFoot').textContent=(filtered?`${list.length} of ${total} match “${$('inpFilter').value}”.`:(total>LEDGER_CAP?`Showing top ${LEDGER_CAP} of ${total} — search to narrow.`:`${total} craftable item${total===1?'':'s'}.`))+hid;
 }
 
 /* specialty bonuses for the SELECTED city only + which items get the bonus */

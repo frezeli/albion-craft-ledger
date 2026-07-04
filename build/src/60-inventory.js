@@ -14,7 +14,7 @@ function renderHave(){
   let html='';
   rows.forEach(r=>{
     const qm=QUAL.find(x=>x[0]===r.ql), cls=qm?qm[2]:'q1', qn=qm?qm[1]:r.ql;
-    html+=`<div class="haverow">${iconHtml(r.fullId,36,{q:+r.ql})}
+    html+=`<div class="haverow">${iconHtml(r.fullId,36,{q:+r.ql})}${tierChipHtml(r.fullId)}
       <div class="meta"><span class="nm">${nameOf(r.fullId)}</span><span class="fam"><span class="qdot ${cls}"></span>${qn} · T${tierOf(r.fullId)}</span></div>
       <input type="number" min="0" data-havq="${r.fullId}" data-hq="${r.ql}" value="${r.c}">
       <button class="rm" data-havrm="${r.fullId}|${r.ql}" title="remove">✕</button></div>`;
@@ -28,7 +28,7 @@ function catFamilies(){
   const tab=state.settings.invTab, filter=($('catFilter').value||'').trim().toLowerCase();
   const out=[];
   for(const key in FAMILIES){ const f=FAMILIES[key];
-    if(tab!=='All' && f.cat!==tab) continue;
+    if(tab!=='all' && f.cat!==tab) continue;
     if(filter && !f.name.toLowerCase().includes(filter)) continue;
     out.push(f);
   }

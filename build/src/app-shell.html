@@ -38,20 +38,21 @@ __STYLE__
     <div class="ctl-row">
       <label class="f">Server <select id="selServer"><option value="europe">Europe</option><option value="west">Americas</option><option value="east">Asia</option></select></label>
       <label class="f">City <select id="selCity"></select></label>
-      <div class="seg" id="segTier"></div>
-      <div class="seg" id="segEnch"></div>
+      <label class="f">Category <select id="selLedgerCat"></select></label>
+      <label class="f">Tier <select id="selTier"></select></label>
+      <label class="f">Enchant <select id="selEnch"></select></label>
       <button class="b primary" id="btnRefresh">Refresh prices</button>
       <span id="refreshStatus" class="pmeta"></span>
     </div>
     <div class="ctl-row">
       <label class="switch">Premium <input type="checkbox" id="chkPremium"><span class="knob"></span></label>
       <label class="switch">Craftable now <input type="checkbox" id="chkCraftable"><span class="knob"></span></label>
+      <label class="switch" title="A lone overpriced listing on a quiet market can look like huge profit. This hides prices far above what the same item sells for in other cities.">Hide suspicious <input type="checkbox" id="chkSuspicious"><span class="knob"></span></label>
       <div class="seg" id="segSell"><button data-sell="instant">Instant Sell</button><button data-sell="order">Sell Order</button></div>
       <label class="f">Return <input id="inpReturn" type="number" min="0" max="90" style="width:52px"> %</label>
       <label class="f">Rank <select id="selSort"><option value="total">Total profit (from stock)</option><option value="perCraft">Profit / craft</option><option value="perMat">Value / material</option></select></label>
       <input id="inpFilter" type="text" placeholder="Search items…" style="flex:1;min-width:150px;max-width:240px">
     </div>
-    <div class="tabs" id="ledgerTabs"></div>
     <div id="rankDesc" class="rankdesc"></div>
     <div id="enchNote" class="note warn hidden"></div>
     <div id="cityNote" class="note hidden"></div>
@@ -71,13 +72,14 @@ __STYLE__
   <div class="panel">
     <div class="ctl-row">
       <label class="f">Category <select id="flipCat"></select></label>
-      <div class="seg" id="flipTier"></div>
-      <div class="seg" id="flipEnch"></div>
+      <label class="f">Tier <select id="selFlipTier"></select></label>
+      <label class="f">Enchant <select id="selFlipEnch"></select></label>
       <button class="b primary" id="btnScanFlips">Scan prices</button>
       <span id="flipStatus" class="pmeta"></span>
     </div>
     <div class="ctl-row">
       <div class="seg" id="flipMode"><button data-fmode="instant">Instant flips</button><button data-fmode="order">Order flips</button></div>
+      <label class="switch" title="Hides flips whose sell price is far above what the item fetches in other cities — likely a lone overpriced order, not a real opportunity.">Hide suspicious <input type="checkbox" id="chkFlipSuspicious"><span class="knob"></span></label>
       <label class="f">Min profit <input id="flipMin" type="number" min="0" style="width:80px"></label>
       <input id="flipFilter" type="text" placeholder="Search items…" style="flex:1;min-width:150px;max-width:240px">
     </div>
@@ -107,7 +109,7 @@ __STYLE__
     </div>
     <div class="panel invpane">
       <h2 class="ph">Add to Inventory <small>pick from every category</small></h2>
-      <div class="tabs" id="catTabs"></div>
+      <label class="f" style="display:flex;margin-bottom:8px">Category <select id="selInvCat" style="flex:1"></select></label>
       <input id="catFilter" type="text" placeholder="Search items to add…" style="width:100%;margin:2px 0 8px">
       <div class="note">Tap any item to choose its tier, enchant, quality and quantity, then add it to what you own. Counts feed the craftable numbers in the Ledger.</div>
       <div style="height:8px"></div>

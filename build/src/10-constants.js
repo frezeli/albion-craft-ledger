@@ -54,20 +54,46 @@ function bonusCityOf(fullId){
 // bonus applies where you CRAFT (the home city). true when the current craft city specialises in this item.
 function hasCityBonus(fullId){ const bc=bonusCityOf(fullId); return bc!=null && bc===homeCity(); }
 
-/* map shopcategory -> tab */
-const TABS=['Weapons','Armor','Off-hands','Resources','Consumables','Tools','Mounts','Artifacts','Misc'];
-const ALLTABS=['All',...TABS];
-function tabOf(it){
+/* ════════ categories & sub-categories (grouped tree, modelled on Naz's albion-ledger-craft) ════════ */
+// [groupLabel, [[leafKey, leafLabel], …]] — rendered as <optgroup> with an "All" option first.
+const CAT_GROUPS=[
+  ['Combat Gear',[['melee','Melee Weapons'],['ranged','Ranged Weapons'],['magic','Magic Weapons'],['offhand','Off-Hand Items'],['armor','Armor']]],
+  ['Accessories',[['bags_capes','Bags & Capes']]],
+  ['Utility',[['tools','Tools'],['mounts','Mounts']]],
+  ['Consumables',[['food','Food'],['potions','Potions']]],
+  ['Materials',[['raw','Raw Materials'],['refined','Refined Materials']]],
+  ['Artifacts',[['artifacts','Artifacts']]],
+  ['Other',[['other','Other']]],
+];
+const CAT_LABELS={}, CAT_KEYS=new Set();
+CAT_GROUPS.forEach(([g,leaves])=>leaves.forEach(([k,l])=>{CAT_LABELS[k]=l; CAT_KEYS.add(k);}));
+// weapon sub-type → damage class (Naz splits weapons into melee / ranged / magic)
+const MELEE_W=new Set(['dagger','knuckles','spear','axe','sword','quarterstaff','hammer','mace']);
+const RANGED_W=new Set(['bow','crossbow']);
+const MAGIC_W=new Set(['cursestaff','firestaff','froststaff','arcanestaff','holystaff','naturestaff','shapeshifterstaff']);
+// classify an item into a leaf category key
+function catOf(it){
   switch(it.c){
-    case 'weapons':return 'Weapons';
-    case 'head':case 'armors':case 'shoes':return 'Armor';
-    case 'offhands':return 'Off-hands';
-    case 'crafting':return 'Resources';
-    case 'consumables':return 'Consumables';
-    case 'gathering':return 'Tools';
-    case 'mounts':return 'Mounts';
-    case 'artefacts':return 'Artifacts';
-    default:return 'Misc';
+    case 'weapons':
+      if(MELEE_W.has(it.s))return 'melee';
+      if(RANGED_W.has(it.s))return 'ranged';
+      if(MAGIC_W.has(it.s))return 'magic';
+      return 'other';
+    case 'offhands':return 'offhand';
+    case 'head':case 'armors':case 'shoes':return 'armor';
+    case 'bags':case 'capes':return 'bags_capes';
+    case 'gathering':return 'tools';
+    case 'mounts':return 'mounts';
+    case 'consumables':
+      if(it.s==='food')return 'food';
+      if(it.s==='potions')return 'potions';
+      return 'other';
+    case 'crafting':
+      if(it.s==='resources')return 'raw';
+      if(it.s==='refinedresources')return 'refined';
+      return 'other';
+    case 'artefacts':return 'artifacts';
+    default:return 'other';   // vanity, furniture, farming, misc
   }
 }
 // enchant applies to gear + resources only
@@ -83,7 +109,7 @@ function buildFamilies(){
     if(it.t==null) continue;
     const key=base.replace(/^T\d+_/,'');
     let f=FAMILIES[key];
-    if(!f){ f={key,name:it.nm.replace(TIER_ADJ,''),cat:tabOf(it),ench:isEnchantable(base),tiers:{}}; FAMILIES[key]=f; }
+    if(!f){ f={key,name:it.nm.replace(TIER_ADJ,''),cat:catOf(it),ench:isEnchantable(base),tiers:{}}; FAMILIES[key]=f; }
     f.tiers[it.t]=base;
     if(!f.ench && isEnchantable(base)) f.ench=true;
   }

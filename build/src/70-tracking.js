@@ -10,7 +10,7 @@ function nodeHtml(fullId,need,rr,path,depth){
   const artifactChild=false;
   let row=`<div class="tnode-row">
     <button class="toggle${isLeaf?' leaf':''}" ${isLeaf?'':`data-texp="${path}"`}>${isLeaf?'•':(open?'−':'+')}</button>
-    ${iconHtml(fullId,30)}
+    ${iconHtml(fullId,30)}${tierChipHtml(fullId)}
     <div class="lbl">${nameOf(fullId)}<span class="sub">${isLeaf?(rawFamily(fullId)?'raw · gather':'buy at market'):'craftable'}</span></div>
     <span class="hn ${ok?'ok':'short'}" title="have / needed">${fmt(have)} / ${fmt(needR)}</span>
   </div>`;
