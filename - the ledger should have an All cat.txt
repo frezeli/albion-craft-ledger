@@ -1,0 +1,7 @@
+- the ledger should have an All category which displays the OVERALL best thing to sell etc.
+- the rank part needs to have a description thingy under the categories which clearly tells the method in which these determine the ranks.
+- naz and frezeli name needs to have a gradient which glows or something
+- change icon for inventory to match the icons for ledger tracking settings etc.
+- so in the inventory, there need to be two tabs and grids on the left side will be WHAT YOU HAVE and on the right side will be the items you can choose from, you can click each item from any category, it will open a small UI where you can select the quantity and tier and enchantment level and quality of the item that you wish to add into YOUR INVENTORY/WHAT YOU OWN. TRACKING PART SHOULD BE REMOVED FROM THE INVENTORY.
+- explain how its pulling the price, why are prices not being pulled for some stuff, like t3 journeyman's prowling staff.
+- it should show an overall ranking REGARDLESS of the enchantment, so add a "All" option in enchantment levels on ledger so that you can see the overall profitability regardless of the enchantment level.
